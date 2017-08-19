@@ -44,7 +44,7 @@ void loop() {
     //(1 - зажечь, 0 - погасить)
     //    digitalWrite(constrain(incomingByte / 10 + 7, 6, 13), incomingByte % 2);
     int pin = constrain(incomingByte / 10 + 5, 6, 13);
-    digitalWrite(constrain(pin, incomingByte % 2);
+    digitalWrite(pin, incomingByte % 2);
     Serial.write(pin);
     Serial.println(incomingByte);
   }
