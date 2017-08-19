@@ -1,4 +1,3 @@
-int val;
 int LED = 13;
 int bluetoothVCC = 2;
 #include <SoftwareSerial.h>
@@ -23,7 +22,7 @@ void setup() {
   pinMode(10, OUTPUT);
   pinMode(11, OUTPUT);
   pinMode(12, OUTPUT);
-  pinMode(13, OUTPUT);
+  pinMode(LED, OUTPUT);
 
   //мониторинг со стороны консоли среды разработки arduino (инструменты->монитор порта)
   Serial.begin(9600);
@@ -36,17 +35,20 @@ void loop() {
   if (bluetoothSerial.available() > 0) {
 
     //Считываем пришедший байт
-    byte incomingByte = bluetoothSerial.read();
+    //    byte incomingByte = bluetoothSerial.read();
+    int incomingByte = bluetoothSerial.read();
     //2 байта: № пина, состояние
     //Получаем номер пина путем целочисленного деления значения принятого байта на 10
-    //+ 7 (1-7 => 7-13)
     //и нужное нам действие за счет получения остатка от деления на 2:
     //(1 - зажечь, 0 - погасить)
-    //    digitalWrite(constrain(incomingByte / 10 + 7, 6, 13), incomingByte % 2);
-    int pin = constrain(incomingByte / 10 + 5, 6, 13);
+    //    digitalWrite(constrain(incomingByte / 10, 6, 13), incomingByte % 2);
+    incomingByte += 10; // x->LED 0; y->LED 1 через bluetooth terminal (шлёт код символа, читаем как int)
+    int pin = constrain(incomingByte / 10, 6, 13);
+//    int pin = LED;
     digitalWrite(pin, incomingByte % 2);
-    Serial.write(pin);
+//    Serial.println(incomingByte/10);
     Serial.println(incomingByte);
+//    Serial.println(pin);
   }
 
 }
