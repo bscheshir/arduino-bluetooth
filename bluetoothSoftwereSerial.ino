@@ -41,14 +41,14 @@ void loop() {
     //Получаем номер пина путем целочисленного деления значения принятого байта на 10
     //и нужное нам действие за счет получения остатка от деления на 2:
     //(1 - зажечь, 0 - погасить)
-    //    digitalWrite(constrain(incomingByte / 10, 6, 13), incomingByte % 2);
-    incomingByte += 10; // x->LED 0; y->LED 1 через bluetooth terminal (шлёт код символа, читаем как int)
     int pin = constrain(incomingByte / 10, 6, 13);
-//    int pin = LED;
-    digitalWrite(pin, incomingByte % 2);
-//    Serial.println(incomingByte/10);
+    int state = incomingByte % 2;
+    digitalWrite(pin, state);
+    //Отправляем состояние по сериалу на монитор порта
     Serial.println(incomingByte);
-//    Serial.println(pin);
+    //Отправляем ответ устройству
+    bluetoothSerial.println((state ? "ON" : "OFF"));
+    Serial.println((state ? " ON" : " OFF"));
   }
 
 }
