@@ -78,15 +78,20 @@ void loop() {
     int state = incomingByteState % 2;
     digitalWrite(pin, state);
     //Отправляем ответ устройству
-    bluetoothSerial.println(pin + ' ' + (state ? "ON" : "OFF"));
+    bluetoothSerial.println(String(pin) + ' ' + (state ? "ON" : "OFF"));
     //Отправляем состояние по сериалу на монитор порта
-    Serial.println(pin + ' ' + (state ? " ON" : " OFF"));
+    Serial.println(String(pin) + ' ' + (state ? " ON" : " OFF"));
 
     //отобразить на табло номер пина и состояние
     //tm1637 http://робопро.рф/?p=41
-    tm1637.display(pin * 100 + state);
+    tm1637.display(incomingBytePin);
+    delay(500);
+    tm1637.display(incomingByteState);
+
   }
   else {
+//    bluetoothSerial.println("PING");
+
     delay(1000);
     unsigned char i = count;
     count ++;
