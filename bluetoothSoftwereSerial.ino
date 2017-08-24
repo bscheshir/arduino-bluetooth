@@ -8,6 +8,11 @@ int tmDIO = 6;
 int tmVCC = 7;
 int tmGND = 8;
 
+int8_t NumTab[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}; //0~9,A,b,C,d,E,F
+int8_t ListDisp[4];
+unsigned char count = 0;
+
+
 //int bluetoothGND
 int bluetoothRX = 4;
 int bluetoothTX = 3;
@@ -79,10 +84,23 @@ void loop() {
 
     //отобразить на табло номер пина и состояние
     //tm1637 http://робопро.рф/?p=41
+    tm1637.display(pin * 100 + state);
   }
   else {
     delay(1000);
-    tm1637.display(1234);//выводим на индикатор целое «1234»
+    unsigned char i = count;
+    count ++;
+    if (count == sizeof(NumTab)) count = 0;
+    for (unsigned char BitSelect = 0; BitSelect < 4; BitSelect ++)
+    {
+      ListDisp[BitSelect] = NumTab[i];
+      i ++;
+      if (i == sizeof(NumTab)) i = 0;
+    }
+    tm1637.display(0, ListDisp[0]);
+    tm1637.display(1, ListDisp[1]);
+    tm1637.display(2, ListDisp[2]);
+    tm1637.display(3, ListDisp[3]);
   }
 
 }
