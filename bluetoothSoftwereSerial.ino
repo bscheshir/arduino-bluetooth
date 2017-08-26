@@ -1,33 +1,83 @@
 #include <TM1637.h>
 #include <SoftwareSerial.h>
 
+
+
+//Внешнее прерывание: 2 и 3.
+//Данные выводы могут быть сконфигурированы на вызов прерывания либо на младшем значении,
+//либо на переднем или заднем фронте, или при изменении значения. Подробная информация находится в описании функции attachInterrupt().
 int LED = 13;
-int bluetoothVCC = 2;
-int tmCLK = 5;
-int tmDIO = 6;
-int tmVCC = 7;
-int tmGND = 8;
-
-int8_t NumTab[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}; //0~9,A,b,C,d,E,F
-int8_t ListDisp[4];
-unsigned char count = 0;
+int tmCLK = 8;
+int tmDIO = 7;
+//int tmVCC = 7; //Работает без подключённого пина VCC
+int tmGND = 6;
 
 
+int bluetoothVCC = 9;
 //int bluetoothGND
-int bluetoothRX = 4;
-int bluetoothTX = 3;
-// при подключении нужно TX -> RXD ,RX -> TXD
-SoftwareSerial bluetoothSerial(bluetoothTX, bluetoothRX); // RX, TX
+int bluetoothTX = 10;
+int bluetoothRX = 11;
+
+SoftwareSerial bluetoothSerial(bluetoothTX, bluetoothRX); // (RX, TX) при подключении нужно TX -> RXD ,RX -> TXD
 
 TM1637 tm1637(tmCLK, tmDIO); //создаем экземпляр объекта типа «TM1637», с которым будем далее работать и задаем пины.
+
+class DigitFlow
+{
+    // Переменные - члены класса
+    // Инициализируются при запуске
+    unsigned char count;//счётчик перебора
+
+    long OnTickTime; // время отображения одного значения потока в миллисекундах
+
+    // Текущее состояние
+    unsigned long previousMillis; // последний момент смены состояния
+
+    // Конструктор создает экземпляр класса
+    // и инициализирует переменные-члены класса и состояние
+  public:
+    DigitFlow(long oneTickDelay)
+    {
+      count = 0;
+      OnTickTime = oneTickDelay;
+      previousMillis = 0;
+    }
+
+    void Update(unsigned long currentMillis)
+    {
+      int8_t NumTab[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}; //0~9,A,b,C,d,E,F
+      int8_t ListDisp[] = {0x00, 0x00, 0x00, 0x00}; //буфер текущих символов. Очищаем перед использованием, а то мусор с прошлого такта притащить может
+
+      // выясняем не настал ли момент сменить состояние светодиодов
+      if ((currentMillis - previousMillis >= OnTickTime))
+      {
+        previousMillis = currentMillis; // запоминаем момент времени
+
+        unsigned char i = count;
+        count ++;
+        if (count == sizeof(NumTab)) count = 0;
+        for (unsigned char BitSelect = 0; BitSelect < 4; BitSelect ++)
+        {
+          ListDisp[BitSelect] = NumTab[i];
+          tm1637.display(BitSelect, ListDisp[BitSelect]);
+          i ++;
+          if (i == sizeof(NumTab)) i = 0;
+        }
+      }
+    }
+};
+
+
+DigitFlow df(2000);
+
 
 void setup() {
   // put your setup code here, to run once:
   pinMode(bluetoothVCC, OUTPUT);
   digitalWrite(bluetoothVCC, HIGH);
 
-  pinMode(tmVCC, OUTPUT);
-  digitalWrite(tmVCC, HIGH);
+  //  pinMode(tmVCC, OUTPUT);
+  //  digitalWrite(tmVCC, HIGH);
   pinMode(tmGND, OUTPUT);
   digitalWrite(tmGND, LOW);
 
@@ -90,22 +140,7 @@ void loop() {
 
   }
   else {
-//    bluetoothSerial.println("PING");
-
-    delay(1000);
-    unsigned char i = count;
-    count ++;
-    if (count == sizeof(NumTab)) count = 0;
-    for (unsigned char BitSelect = 0; BitSelect < 4; BitSelect ++)
-    {
-      ListDisp[BitSelect] = NumTab[i];
-      i ++;
-      if (i == sizeof(NumTab)) i = 0;
-    }
-    tm1637.display(0, ListDisp[0]);
-    tm1637.display(1, ListDisp[1]);
-    tm1637.display(2, ListDisp[2]);
-    tm1637.display(3, ListDisp[3]);
+    //    bluetoothSerial.println("PING");
+    df.Update(millis());
   }
-
 }
