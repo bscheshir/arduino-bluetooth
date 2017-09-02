@@ -1,10 +1,12 @@
-#include <OneButton.h>
-#include <TM1637.h>
+#include <DFPlayer_Mini_Mp3.h> //http://lesson.iarduino.ru/page/urok-17-podklyuchenie-mini-mp3-pleera-k-arduino/ http://iarduino.ru/file/140.html
+#include <Stepper_28BYJ.h> //https://lesson.iarduino.ru/page/upravlenie-shagovym-dvigatelem-s-arduiny/ http://iarduino.ru/file/148.html
+#include <OneButton.h>//http://microsin.net/programming/avr/arduino-onebutton-library.html https://github.com/mathertel/OneButton
+#include <TM1637.h>//http://робопро.рф/?p=41 https://yadi.sk/d/Ci5aiYzsqo7qk
 #include <SoftwareSerial.h>
-// #include <DFPlayer_Mini_Mp3.h>
-// #include <Stepper_28BYJ.h>
+
+
 // количество шагов для мотора
-// #define STEPS 4078
+#define STEPS 4078
 
 
 
@@ -34,12 +36,16 @@ int stepper3 = 3;
 //int buttonPin = 2; // прерывание по 2му пину
 int volumeAnalogPin = A0;
 
-// Setup a new OneButton on pin A1.  
-OneButton button1(A1, true);
+// Библиотека для обработки нажатий. Попробовать миксовать с прерыванием.
+OneButton button1(2, true); // пин (цифровой/аналоговый), использовать низкий уровень (true)/ использоват высокий уровень (false) как факт нажатия.
+//OneButton button1(A1, true);
 
 
 SoftwareSerial bluetoothSerial(bluetoothTX, bluetoothRX); // (RX, TX) при подключении нужно TX -> RXD ,RX -> TXD
 SoftwareSerial mp3Serial(mp3RX, mp3TX); // (RX, TX)
+
+//степпер
+Stepper_28BYJ stepper(STEPS, stepper0, stepper1, stepper2, stepper3);
 
 TM1637 tm1637(tmCLK, tmDIO); //создаем экземпляр объекта типа «TM1637», с которым будем далее работать и задаем пины.
 
@@ -95,6 +101,7 @@ class DigitFlow
 // объявление "потока цифр"
 DigitFlow df(2000);
 
+//класс управления громкостью
 class VolumeControl
 {
     int pin;//потенциометр
@@ -158,22 +165,107 @@ class VolumeControl
         currentVolume = currentVolumeSoftwere;
       }
 
-      //      mp3_set_volume(currentVolume);
+      mp3_set_volume(currentVolume);
 
       //Отправляем ответ устройству
       bluetoothSerial.println("Громкость: " + String(currentVolume));
-
+      //отображение громкости
+      tm1637.display(currentVolume);
       //поворачиваем степпер
-//      stepper.step(map(currentVolume - stepperCheck), -30, 30, -100, 100);
+      stepper.step(map(currentVolume - stepperCheck, -30, 30, -100, 100));
 
     }
 };
 
 VolumeControl vc(volumeAnalogPin, 100);
 
+//класс для управления ограничениями и прерываниями степпера
+class StepperControl
+{
+    typedef enum {
+      ACTION_OFF,     // set stepper "OFF".
+      ACTION_FORWARD, // set stepper "FORWARD"
+      ACTION_BACKWARD // set stepper "BACKWARD"
+    }
+    StepperActions;
 
-//Stepper_28BYJ stepper(STEPS, stepper0, stepper1, stepper2, stepper3);
+    StepperActions nextAction;
+    int forwardSteps;
+    int currentForwardSteps;
+    int backwardSteps;
+    int currentBackwardSteps;
+    int stepperSpeed;
+    unsigned long prevMillis; // последний момент смены состояния
 
+  public:
+    StepperControl() {
+      forwardSteps = 0;
+      currentForwardSteps = 0;
+      backwardSteps = 0;
+      currentBackwardSteps = 0;
+      prevMillis = 0;
+      stepperSpeed = 3;
+
+      nextAction = ACTION_OFF; // на старте остановлен
+    }
+
+    void setStepperSpeed (int value) {
+      stepperSpeed = value;
+    }
+
+    void setTargets(int forward, int backward) {
+      forwardSteps = forward;
+      backwardSteps = backward;
+    }
+
+    void Update(unsigned long currentMillis)
+    {
+      unsigned long checkTime;
+      int doSteps;
+      int restSteps;
+      checkTime = STEPS / stepperSpeed;
+      if ((currentMillis - prevMillis >= checkTime))
+      {
+        prevMillis = currentMillis; // запоминаем момент времени
+
+
+        if (nextAction == ACTION_OFF) {
+          //set all to low level
+        } else if (nextAction == ACTION_FORWARD) {
+
+          // прокрутим вперёд несколько шагов
+          doSteps = 10;
+          restSteps = forwardSteps - doSteps;
+          if (restSteps > 0 ) {
+            stepper.step(doSteps);
+            forwardSteps = restSteps;
+          }
+          else {
+            stepper.step(forwardSteps - restSteps);
+            forwardSteps = 0;
+            nextAction = ACTION_BACKWARD;
+          }
+        } else if (nextAction == ACTION_BACKWARD) {
+
+          // прокрутим назад несколько шагов
+          doSteps = 10;
+          restSteps = backwardSteps - doSteps;
+          if (restSteps > 0 ) {
+            stepper.step(-1 * doSteps);
+            backwardSteps = restSteps;
+          }
+          else {
+            stepper.step(-1 * (backwardSteps - restSteps));
+            backwardSteps = 0;
+            nextAction = ACTION_OFF;
+          }
+        }
+      }
+    }
+
+};
+
+StepperControl stepperControl;
 
 void setup() {
 
@@ -219,20 +311,20 @@ void setup() {
 
 //нажатие кнопки
 void click1() {
-//      mp3_next (); // Следующий трек
+  mp3_next (); // Следующий трек
 
   bluetoothSerial.println("Клик!");
-} 
+}
 
 //даблклик
 void doubleclick1() {
-  // st.setTarget(random(0, 4000),random(-4000, 0));// long
+  stepperControl.setTargets(random(0, 4000), random(0, 4000)); // установить цели для вращения вперёд и назад
   bluetoothSerial.println("Даблклик!");
 }
 
 //закончили жать на кнопку
 void longPressStop1() {
-  //    mp3_next (); // Следующий трек
+  mp3_stop (); //стоп
   bluetoothSerial.println("Отпустили!");
 }
 
@@ -259,11 +351,12 @@ void loop() {
       }
     }
 
-    //й бит - флаг громкости 3й бит - громкость
+    //2й бит - флаг громкости 3й бит - громкость
     if (constrain(readString[2], 0, 1)) {
       vc.softwereSet(readString[3]);
     }
     vc.Update(now);
+    stepperControl.Update(now);
 
     //readString.substring(0, 2);
     int incomingBytePin = readString[0];
