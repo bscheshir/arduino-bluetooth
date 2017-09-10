@@ -146,7 +146,7 @@ class VolumeControl
     //      return targetVolumeSoftwere;
     //    }
     int softwereSet(int val) {
-      targetVolumeSoftwere = constrain(map(val, 0, 1023, 0, 30), 0, 30);
+      targetVolumeSoftwere = constrain(map(val, 0, 127, 0, 30), 0, 30);
     }
     void setVolume() {
       int stepperCheck = currentVolume;
