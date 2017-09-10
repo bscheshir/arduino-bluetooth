@@ -342,30 +342,43 @@ void loop() {
     String readString;
     while (bluetoothSerial.available()) {
       delay(3);  //пауза для того, чтобы буфер наполнился
-      if (bluetoothSerial.available() > 0) {
-        char c = bluetoothSerial.read();  //получить один байт из порта
-        if (c == '\n') {
-          break;
-        }
-        readString += c; //дополняем прочитаную строку
+      if (bluetoothSerial.available() > 0) { // читаем весь пакет
+        readString += bluetoothSerial.read();  //получить один байт из порта
       }
     }
 
-    //2й бит - флаг громкости 3й бит - громкость
+    //0й байт - номер цифрового пина для управления.
+    //1й байт - код действия.
+    int incomingBytePin = readString[0];
+    int incomingByteState = readString[1];
+    //на "1" повесим действия
+    if(incomingBytePin == 1) {
+        switch (incomingByteState) {
+            case 1:
+              click1();
+              break;
+            case 2:
+              longPressStop1();
+              break;
+            default:
+                
+            break;
+          }
+    }
+    
+    //2й байт - флаг громкости 3й байт - громкость
     if (constrain(readString[2], 0, 1)) {
       vc.softwereSet(readString[3]);
     }
+    
     vc.Update(now);
     stepperControl.Update(now);
 
-    //readString.substring(0, 2);
-    int incomingBytePin = readString[0];
-    int incomingByteState = readString[1];
     //2 байта: № пина, состояние
     //Получаем номер пина
     //и нужное нам действие за счет получения остатка от деления на 2:
     //(1 - зажечь, 0 - погасить)
-    int pin = constrain(incomingBytePin, 6, 13);
+    int pin = constrain(incomingBytePin, 13, 13);
     int state = incomingByteState % 2;
     digitalWrite(pin, state);
 
