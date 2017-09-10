@@ -390,10 +390,11 @@ void loop() {
 
     //отобразить на табло номер пина и состояние
     //tm1637 http://робопро.рф/?p=41
-    tm1637.display(incomingBytePin);
-    delay(500);
-    tm1637.display(incomingByteState);
-
+    tm1637.clearDisplay(1);
+    tm1637.clearDisplay(2);
+    tm1637.display(0, incomingBytePin);
+    tm1637.display(3, incomingByteState);
+    
   }
   else {
     //    bluetoothSerial.println("PING");
