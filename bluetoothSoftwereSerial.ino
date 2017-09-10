@@ -352,25 +352,25 @@ void loop() {
     int incomingBytePin = readString[0];
     int incomingByteState = readString[1];
     //на "1" повесим действия
-    if(incomingBytePin == 1) {
-        switch (incomingByteState) {
-            case 1:
-              click1();
-              break;
-            case 2:
-              longPressStop1();
-              break;
-            default:
-                
-            break;
-          }
+    if (incomingBytePin == 1) {
+      switch (incomingByteState) {
+        case 1:
+          click1();
+          break;
+        case 2:
+          longPressStop1();
+          break;
+        default:
+
+          break;
+      }
     }
-    
+
     //2й байт - флаг громкости 3й байт - громкость
     if (constrain(readString[2], 0, 1)) {
       vc.softwereSet(readString[3]);
     }
-    
+
     vc.Update(now);
     stepperControl.Update(now);
 
@@ -390,11 +390,10 @@ void loop() {
 
     //отобразить на табло номер пина и состояние
     //tm1637 http://робопро.рф/?p=41
-    tm1637.clearDisplay(1);
-    tm1637.clearDisplay(2);
+    tm1637.clearDisplay();
     tm1637.display(0, incomingBytePin);
     tm1637.display(3, incomingByteState);
-    
+
   }
   else {
     //    bluetoothSerial.println("PING");
