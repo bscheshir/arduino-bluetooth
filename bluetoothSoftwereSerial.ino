@@ -174,10 +174,10 @@ class VolumeControl
         //Отправляем ответ устройству
         bluetoothSerial.println("Громкость: " + String(currentVolume));
         //поворачиваем степпер
-        stepper.step(map(currentVolume - stepperCheck, -30, 30, -100, 100));
+        //        stepper.step(map(currentVolume - stepperCheck, -30, 30, -100, 100));
         //mp3
         mp3_set_volume(currentVolume);
-//        delay(100);
+        //        delay(100);
       }
     }
 };
@@ -301,7 +301,7 @@ void setup() {
 
   //порт плеера
   mp3Serial.begin(9600);
-  // mp3_set_serial (Serial);    //set Serial for DFPlayer-mini mp3 module
+  mp3_set_serial(Serial);    //set Serial for DFPlayer-mini mp3 module
 
   //  delay(1000);
   //порт блютуза
