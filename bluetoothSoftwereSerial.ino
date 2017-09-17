@@ -301,7 +301,7 @@ void setup() {
 
   //порт плеера
   mp3Serial.begin(9600);
-  mp3_set_serial(Serial);    //set Serial for DFPlayer-mini mp3 module
+  mp3_set_serial(mp3Serial);    //set Serial for DFPlayer-mini mp3 module
 
   //  delay(1000);
   //порт блютуза
