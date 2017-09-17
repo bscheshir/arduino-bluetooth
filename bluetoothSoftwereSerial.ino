@@ -149,6 +149,7 @@ class VolumeControl
       targetVolumeSoftwere = constrain(map(val, 0, 127, 0, 30), 0, 30);
     }
     void setVolume() {
+      bool changed = false;
       int stepperCheck = currentVolume;
       hardwereRead();
       //      targetVolumeHardwere = hardwereRead();
@@ -158,26 +159,30 @@ class VolumeControl
         source = false;
         currentSource = false;
         currentVolume = currentVolumeHardwere;
+        changed = true;
       }
       else if (targetVolumeSoftwere != currentVolumeSoftwere) {
         currentVolumeSoftwere = targetVolumeSoftwere;
         source = true;
         currentVolume = currentVolumeSoftwere;
+        changed = true;
       }
 
-      mp3_set_volume(currentVolume);
-
-      //Отправляем ответ устройству
-      bluetoothSerial.println("Громкость: " + String(currentVolume));
-      //отображение громкости
-      tm1637.display(currentVolume);
-      //поворачиваем степпер
-      stepper.step(map(currentVolume - stepperCheck, -30, 30, -100, 100));
-
+      if (changed) {
+        //отображение громкости
+        tm1637.display(currentVolume);
+        //Отправляем ответ устройству
+        bluetoothSerial.println("Громкость: " + String(currentVolume));
+        //поворачиваем степпер
+        stepper.step(map(currentVolume - stepperCheck, -30, 30, -100, 100));
+        //mp3
+        mp3_set_volume(currentVolume);
+//        delay(100);
+      }
     }
 };
 
-VolumeControl vc(volumeAnalogPin, 100);
+VolumeControl vc(volumeAnalogPin, 500);
 
 //класс для управления ограничениями и прерываниями степпера
 class StepperControl
@@ -340,17 +345,25 @@ void loop() {
   if (bluetoothSerial.available() > 0) {
 
     String readString;
+    int i = 0;
     while (bluetoothSerial.available()) {
       delay(3);  //пауза для того, чтобы буфер наполнился
-      if (bluetoothSerial.available() > 0) { // читаем весь пакет
-        readString += bluetoothSerial.read();  //получить один байт из порта
+      if (bluetoothSerial.available() > 0) {
+        char c = bluetoothSerial.read();  //получить один байт из порта
+        if (c == '\n' || i > 3) {
+          break;
+        }
+        i++;
+        readString += c; //дополняем прочитаную строку
       }
     }
 
+    //    Serial.println(readString);
     //0й байт - номер цифрового пина для управления.
     //1й байт - код действия.
     int incomingBytePin = readString[0];
     int incomingByteState = readString[1];
+    Serial.println(readString + ": " + incomingBytePin + "-" + incomingByteState + " " + readString.length());
     //на "1" повесим действия
     if (incomingBytePin == 1) {
       switch (incomingByteState) {
@@ -370,9 +383,6 @@ void loop() {
     if (constrain(readString[2], 0, 1)) {
       vc.softwereSet(readString[3]);
     }
-
-    vc.Update(now);
-    stepperControl.Update(now);
 
     //2 байта: № пина, состояние
     //Получаем номер пина
@@ -399,6 +409,9 @@ void loop() {
     //    bluetoothSerial.println("PING");
     df.Update(now);
   }
+
+  vc.Update(now);
+  stepperControl.Update(now);
 
   // Проверка нажатия кнопок:
   button1.tick();
