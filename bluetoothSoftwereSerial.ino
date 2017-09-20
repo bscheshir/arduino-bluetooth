@@ -42,7 +42,7 @@ OneButton button1(2, true); // пин (цифровой/аналоговый), �
 
 
 SoftwareSerial bluetoothSerial(bluetoothTX, bluetoothRX); // (RX, TX) при подключении нужно TX -> RXD ,RX -> TXD
-SoftwareSerial mp3Serial(mp3RX, mp3TX); // (RX, TX)
+SoftwareSerial mp3Serial(mp3TX, mp3RX); // (RX, TX) --//--
 
 //степпер
 Stepper_28BYJ stepper(STEPS, stepper0, stepper1, stepper2, stepper3);
@@ -303,7 +303,7 @@ void setup() {
   mp3Serial.begin(9600);
   mp3_set_serial(mp3Serial);    //set Serial for DFPlayer-mini mp3 module
 
-  //  delay(1000);
+  delay(100);
   //порт блютуза
   bluetoothSerial.begin(9600);
   //мониторинг со стороны консоли среды разработки arduino (инструменты->монитор порта)
