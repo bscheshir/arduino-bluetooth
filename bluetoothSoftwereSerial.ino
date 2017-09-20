@@ -375,28 +375,29 @@ void loop() {
           break;
         default:
 
+          //2й байт - флаг громкости 3й байт - громкость
+          if (constrain(readString[2], 0, 1)) {
+            vc.softwereSet(readString[3]);
+          }
+
+          //2 байта: № пина, состояние
+          //Получаем номер пина
+          //и нужное нам действие за счет получения остатка от деления на 2:
+          //(1 - зажечь, 0 - погасить)
+          int pin = constrain(incomingBytePin, 13, 13);
+          int state = incomingByteState % 2;
+          digitalWrite(pin, state);
+
+
+          //Отправляем ответ устройству
+          bluetoothSerial.println(String(pin) + ' ' + (state ? "ON" : "OFF"));
+          //Отправляем состояние по сериалу на монитор порта
+          Serial.println(String(pin) + ' ' + (state ? " ON" : " OFF"));
+
           break;
       }
     }
 
-    //2й байт - флаг громкости 3й байт - громкость
-    if (constrain(readString[2], 0, 1)) {
-      vc.softwereSet(readString[3]);
-    }
-
-    //2 байта: № пина, состояние
-    //Получаем номер пина
-    //и нужное нам действие за счет получения остатка от деления на 2:
-    //(1 - зажечь, 0 - погасить)
-    int pin = constrain(incomingBytePin, 13, 13);
-    int state = incomingByteState % 2;
-    digitalWrite(pin, state);
-
-
-    //Отправляем ответ устройству
-    bluetoothSerial.println(String(pin) + ' ' + (state ? "ON" : "OFF"));
-    //Отправляем состояние по сериалу на монитор порта
-    Serial.println(String(pin) + ' ' + (state ? " ON" : " OFF"));
 
     //отобразить на табло номер пина и состояние
     //tm1637 http://робопро.рф/?p=41
