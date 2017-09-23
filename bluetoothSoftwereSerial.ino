@@ -298,6 +298,7 @@ void setup() {
 
   button1.attachClick(click1);
   button1.attachDoubleClick(doubleclick1);
+  button1.attachLongPressStop(longPressStop1);
 
   //порт плеера
   mp3Serial.begin(9600);
