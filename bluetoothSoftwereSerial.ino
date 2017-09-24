@@ -86,20 +86,116 @@ class DigitFlow
         if (count == sizeof(NumTab)) count = 0;
         for (unsigned char BitSelect = 0; BitSelect < 4; BitSelect ++)
         {
-          //          Serial.println(NumTab[i]);
           ListDisp[BitSelect] = NumTab[i];
           tm1637.display(BitSelect, ListDisp[BitSelect]);
           i ++;
           if (i == sizeof(NumTab)) i = 0;
         }
-        //        tm1637.display(ListDisp);
-        //        Serial.println();
       }
     }
 };
 
 // объявление "потока цифр"
 DigitFlow df(2000);
+
+
+//класс для управления ограничениями и прерываниями степпера
+class StepperControl
+{
+    typedef enum {
+      ACTION_OFF,     // set stepper "OFF".
+      ACTION_FORWARD, // set stepper "FORWARD"
+      ACTION_BACKWARD // set stepper "BACKWARD"
+    }
+    StepperActions;
+
+    StepperActions nextAction;
+    int forwardSteps;
+    int currentForwardSteps;
+    int backwardSteps;
+    int currentBackwardSteps;
+    int stepperSpeed;
+    unsigned long prevMillis; // последний момент смены состояния
+
+  public:
+    StepperControl() {
+      forwardSteps = 0;
+      currentForwardSteps = 0;
+      backwardSteps = 0;
+      currentBackwardSteps = 0;
+      prevMillis = 0;
+      stepperSpeed = 15;
+      setStepperSpeed(stepperSpeed);
+      nextAction = ACTION_OFF; // на старте остановлен
+    }
+
+    void setStepperSpeed (int value) {
+      stepperSpeed = value;
+      stepper.setSpeed(stepperSpeed);
+      //Serial.println(String("speed") + value);
+    }
+
+    void setTargets(int forward, int backward) {
+      forwardSteps = forward;
+      backwardSteps = backward;
+      nextAction = ACTION_FORWARD;
+      //Serial.println(String("forward: ") + forward + String(" backward:") + backward);
+    }
+
+    void Update(unsigned long currentMillis)
+    {
+      unsigned long checkTime;
+      int doSteps;
+      int restSteps;
+      checkTime = constrain(STEPS / stepperSpeed * 0.1, 10, STEPS);//21..40
+      doSteps = constrain(STEPS / checkTime, 10, STEPS);//10..4000
+      if ((currentMillis - prevMillis >= checkTime))
+      {
+        prevMillis = currentMillis; // запоминаем момент времени
+
+        if (nextAction == ACTION_OFF) {
+          //Serial.println(String("nextAction == ACTION_OFF ") + checkTime+ String(":") + doSteps);
+          //set all to low level stepper0
+          digitalWrite(stepper0, LOW);
+          digitalWrite(stepper1, LOW);
+          digitalWrite(stepper2, LOW);
+          digitalWrite(stepper3, LOW);
+        } else if (nextAction == ACTION_FORWARD) {
+          //Serial.println(String("nextAction == ACTION_FORWARD"));
+          // прокрутим вперёд несколько шагов
+          //doSteps = 100;
+          restSteps = forwardSteps - doSteps;
+          if (restSteps > 0 ) {
+            stepper.step(doSteps);
+            forwardSteps = restSteps;
+          }
+          else {
+            stepper.step(forwardSteps - restSteps);
+            forwardSteps = 0;
+            nextAction = ACTION_BACKWARD;
+          }
+        } else if (nextAction == ACTION_BACKWARD) {
+          //Serial.println(String("nextAction == ACTION_BACKWARD"));
+          // прокрутим назад несколько шагов
+          //doSteps = 100;
+          restSteps = backwardSteps - doSteps;
+          if (restSteps > 0 ) {
+            stepper.step(-1 * doSteps);
+            backwardSteps = restSteps;
+          }
+          else {
+            stepper.step(-1 * (backwardSteps - restSteps));
+            backwardSteps = 0;
+            nextAction = ACTION_OFF;
+          }
+        }
+      }
+    }
+
+};
+
+StepperControl stepperControl;
+
 
 //класс управления громкостью
 class VolumeControl
@@ -174,103 +270,18 @@ class VolumeControl
         //Отправляем ответ устройству
         bluetoothSerial.println("Громкость: " + String(currentVolume));
         //поворачиваем степпер
-        //        stepper.step(map(currentVolume - stepperCheck, -30, 30, -100, 100));
+//        stepper.step(map(currentVolume - stepperCheck, -30, 30, -100, 100));
         //mp3
         mp3_set_volume(currentVolume);
         //        delay(100);
+        //устанавливаем скорость степпера
+        stepperControl.setStepperSpeed(map(constrain(currentVolume, 0, 30), 0, 30, 10, 20));
+        //поворачиваем степпер
       }
     }
 };
 
 VolumeControl vc(volumeAnalogPin, 500);
-
-//класс для управления ограничениями и прерываниями степпера
-class StepperControl
-{
-    typedef enum {
-      ACTION_OFF,     // set stepper "OFF".
-      ACTION_FORWARD, // set stepper "FORWARD"
-      ACTION_BACKWARD // set stepper "BACKWARD"
-    }
-    StepperActions;
-
-    StepperActions nextAction;
-    int forwardSteps;
-    int currentForwardSteps;
-    int backwardSteps;
-    int currentBackwardSteps;
-    int stepperSpeed;
-    unsigned long prevMillis; // последний момент смены состояния
-
-  public:
-    StepperControl() {
-      forwardSteps = 0;
-      currentForwardSteps = 0;
-      backwardSteps = 0;
-      currentBackwardSteps = 0;
-      prevMillis = 0;
-      stepperSpeed = 3;
-
-      nextAction = ACTION_OFF; // на старте остановлен
-    }
-
-    void setStepperSpeed (int value) {
-      stepperSpeed = value;
-    }
-
-    void setTargets(int forward, int backward) {
-      forwardSteps = forward;
-      backwardSteps = backward;
-    }
-
-    void Update(unsigned long currentMillis)
-    {
-      unsigned long checkTime;
-      int doSteps;
-      int restSteps;
-      checkTime = STEPS / stepperSpeed;
-      if ((currentMillis - prevMillis >= checkTime))
-      {
-        prevMillis = currentMillis; // запоминаем момент времени
-
-
-        if (nextAction == ACTION_OFF) {
-          //set all to low level
-        } else if (nextAction == ACTION_FORWARD) {
-
-          // прокрутим вперёд несколько шагов
-          doSteps = 10;
-          restSteps = forwardSteps - doSteps;
-          if (restSteps > 0 ) {
-            stepper.step(doSteps);
-            forwardSteps = restSteps;
-          }
-          else {
-            stepper.step(forwardSteps - restSteps);
-            forwardSteps = 0;
-            nextAction = ACTION_BACKWARD;
-          }
-        } else if (nextAction == ACTION_BACKWARD) {
-
-          // прокрутим назад несколько шагов
-          doSteps = 10;
-          restSteps = backwardSteps - doSteps;
-          if (restSteps > 0 ) {
-            stepper.step(-1 * doSteps);
-            backwardSteps = restSteps;
-          }
-          else {
-            stepper.step(-1 * (backwardSteps - restSteps));
-            backwardSteps = 0;
-            nextAction = ACTION_OFF;
-          }
-        }
-      }
-    }
-
-};
-
-StepperControl stepperControl;
 
 void setup() {
 
@@ -317,21 +328,20 @@ void setup() {
 
 //нажатие кнопки
 void click1() {
+  bluetoothSerial.println("Следующий трек");
   mp3_next (); // Следующий трек
-
-  bluetoothSerial.println("Клик!");
 }
 
 //даблклик
 void doubleclick1() {
+  bluetoothSerial.println("Фигурка!");
   stepperControl.setTargets(random(0, 4000), random(0, 4000)); // установить цели для вращения вперёд и назад
-  bluetoothSerial.println("Даблклик!");
 }
 
 //закончили жать на кнопку
 void longPressStop1() {
+  bluetoothSerial.println("Стоп музыка");
   mp3_stop (); //стоп
-  bluetoothSerial.println("Отпустили!");
 }
 
 void checkStateImmidiatly() {
@@ -341,7 +351,6 @@ void checkStateImmidiatly() {
 void loop() {
   unsigned long now = millis();
 
-  // put your main code here, to run repeatedly:
   //Если данные пришли
   if (bluetoothSerial.available() > 0) {
 
@@ -352,13 +361,14 @@ void loop() {
       if (bluetoothSerial.available() > 0) {
         char c = bluetoothSerial.read();  //получить один байт из порта
         if (c == '\n' || i > 3) {
+        delay(30);
           break;
         }
         i++;
         readString += c; //дополняем прочитаную строку
       }
     }
-    delay(30);
+    
 
     //0й байт - номер цифрового пина для управления.
     //1й байт - код действия.
