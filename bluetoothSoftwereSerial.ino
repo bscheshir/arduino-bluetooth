@@ -3,6 +3,7 @@
 #include <OneButton.h>//http://microsin.net/programming/avr/arduino-onebutton-library.html https://github.com/mathertel/OneButton
 #include <TM1637.h>//http://робопро.рф/?p=41 https://yadi.sk/d/Ci5aiYzsqo7qk
 #include <SoftwareSerial.h>
+#include <VolumeControl.h> //https://github.com/bscheshir/volume-control
 
 
 // количество шагов для мотора
@@ -196,92 +197,21 @@ class StepperControl
 
 StepperControl stepperControl;
 
+// VolumeControl callback
+void setVolume(int volume) {
+  //отображение громкости
+  tm1637.display(currentVolume);
+  //Отправляем ответ устройству
+  bluetoothSerial.println("Громкость: " + String(currentVolume));
+  //mp3
+  mp3_set_volume(currentVolume);
+  //delay(100);
+  //устанавливаем скорость степпера
+  stepperControl.setStepperSpeed(map(constrain(currentVolume, 0, 30), 0, 30, 10, 20));
+}
 
-//класс управления громкостью
-class VolumeControl
-{
-    int pin;//потенциометр
-    int currentVolume;//текущее значение громкости после всех преобразований
-    int currentVolumeHardwere;// текущее значение громкости для резистора
-    int currentVolumeSoftwere;// текущее значение громкости для блютуза
-    int targetVolumeHardwere;// целевое значение громкости
-    int targetVolumeSoftwere;// целевое  значение громкости
-    bool source;// 0 - непосредственное управление; 1 - програмное
-    bool currentSource;
-    long checkTime;
-    unsigned long prevMillis; // последний момент смены состояния
-
-  public:
-    VolumeControl(int analogPin, long timeInterval) {
-      pin = analogPin;
-      currentVolumeHardwere = hardwereRead();
-      source = false;
-      currentSource = false;
-      currentVolumeSoftwere = currentVolumeHardwere;
-      targetVolumeHardwere = currentVolumeHardwere;
-      targetVolumeSoftwere = currentVolumeHardwere;
-      currentVolume = currentVolumeHardwere;
-      checkTime = timeInterval;
-      prevMillis = 0;
-    }
-    void Update(unsigned long currentMillis)
-    {
-      if ((currentMillis - prevMillis >= checkTime))
-      {
-        prevMillis = currentMillis; // запоминаем момент времени
-        setVolume();
-      }
-    }
-    int hardwereRead() {
-      // http://arduino.ru/Reference/Map
-      int val = analogRead(pin);
-      targetVolumeHardwere = constrain(map(val, 0, 1023, 0, 30), 0, 30);
-      return targetVolumeHardwere;
-    }
-    //    int softwereRead() {
-    //      return targetVolumeSoftwere;
-    //    }
-    int softwereSet(int val) {
-      targetVolumeSoftwere = constrain(map(val, 0, 127, 0, 30), 0, 30);
-    }
-    void setVolume() {
-      bool changed = false;
-      int stepperCheck = currentVolume;
-      hardwereRead();
-      //      targetVolumeHardwere = hardwereRead();
-      //      targetVolumeSoftwere = softwereRead();
-      if (targetVolumeHardwere != currentVolumeHardwere) {
-        currentVolumeHardwere = targetVolumeHardwere;
-        source = false;
-        currentSource = false;
-        currentVolume = currentVolumeHardwere;
-        changed = true;
-      }
-      else if (targetVolumeSoftwere != currentVolumeSoftwere) {
-        currentVolumeSoftwere = targetVolumeSoftwere;
-        source = true;
-        currentVolume = currentVolumeSoftwere;
-        changed = true;
-      }
-
-      if (changed) {
-        //отображение громкости
-        tm1637.display(currentVolume);
-        //Отправляем ответ устройству
-        bluetoothSerial.println("Громкость: " + String(currentVolume));
-        //поворачиваем степпер
-//        stepper.step(map(currentVolume - stepperCheck, -30, 30, -100, 100));
-        //mp3
-        mp3_set_volume(currentVolume);
-        //        delay(100);
-        //устанавливаем скорость степпера
-        stepperControl.setStepperSpeed(map(constrain(currentVolume, 0, 30), 0, 30, 10, 20));
-        //поворачиваем степпер
-      }
-    }
-};
-
-VolumeControl vc(volumeAnalogPin, 500);
+//non-block volume control class
+VolumeControl vc(volumeAnalogPin, 500, &setVolume);
 
 void setup() {
 
@@ -345,7 +275,6 @@ void longPressStop1() {
 }
 
 void checkStateImmidiatly() {
-  vc.setVolume();
 }
 
 void loop() {
@@ -390,7 +319,7 @@ void loop() {
       case 0: //"пин 0" для громкости
         //2й байт - флаг громкости 3й байт - громкость
         if (constrain(readString[2], 0, 1)) {
-          vc.softwereSet(readString[3]);
+          vc.softwareSet(readString[3]);
         }
         break;
       case 12: //"пин 12" для степпера
@@ -432,7 +361,7 @@ void loop() {
     df.Update(now);
   }
 
-  vc.Update(now);
+  vc.update(now);
   stepperControl.Update(now);
 
   // Проверка нажатия кнопок:
